@@ -31,10 +31,11 @@ module Judge
 
       def normalized_params(params)
         params = params.dup.keep_if { |k| REQUIRED_PARAMS.include?(k) }
-        params[:klass]     = find_klass(params[:klass]) if params[:klass]
-        params[:attribute] = params[:attribute].to_sym  if params[:attribute]
-        params[:value]     = URI.decode(params[:value]) if params[:value]
-        params[:kind]      = params[:kind].to_sym       if params[:kind]
+        params[:klass]     = check_for_alias_klass(params[:klass]) if params[:klass]
+        params[:klass]     = find_klass(params[:klass])            if params[:klass]
+        params[:attribute] = params[:attribute].to_sym             if params[:attribute]
+        params[:value]     = URI.decode(params[:value])            if params[:value]
+        params[:kind]      = params[:kind].to_sym                  if params[:kind]
         params
       end
 
@@ -44,5 +45,9 @@ module Judge
         nil
       end
 
+      def check_for_alias_klass(name)
+        new_klass = Judge.config.exposed_as?(name)
+        new_klass || name
+      end
   end
 end

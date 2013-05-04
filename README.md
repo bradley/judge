@@ -6,6 +6,73 @@
 
 Judge allows easy client side form validation for Rails 3 by porting many `ActiveModel::Validation` features to JavaScript. The most common validations work through JSON strings stored within HTML5 data attributes and are executed purely on the client side. Wherever you need to, Judge provides a simple interface for AJAX validations too.
 
+## About this Fork!
+
+This fork modifies Judge to validate uniqueness on fields embedded in a form the fields_for form helper.
+
+Example:
+
+Consider this relationship between Person and Email:
+
+```ruby
+class Person < ActiveRecord::Base
+  # ...
+  has_one :email
+  accepts_nested_attributes_for :email
+end
+
+class Email < ActiveRecord::Base
+  attr_accessible :address
+  belongs_to :person
+  
+  validates :address, :uniqueness => true
+end
+```
+
+In a form for a person object, we may wish to pass the person's email back and save it along with the person:
+
+```html
+<%= form_for @person, validate: true do |f| %>
+  <%= f.text_field :username, validate: true %>
+  <%= f.fields_for :email, @person.email do |email_f| %>
+    <%= email_f.text_field :address, validate: true %>
+  <% end %>
+  <div class='actions'>
+    <%= f.submit "Update" %>
+  </div>
+<% end %>
+```
+
+The problem, and reason for this fork, is that the email address field in this form will have the attribute:
+
+```html
+name="user[email_attributes][address]"
+```
+
+Meaning that when Judge attempts to validate uniqueness for this field, it will attempt to check the EmailAttributes model (which does not exist), rather than the Email model.
+
+In order to fix this, when configuring your judge.rb initializer, simply add an extra line in the following format:
+
+```ruby
+expose_with_alias 'Email', 'EmailAttributes'
+```
+
+This will tell Judge to interpret any request for validations on the EmailAttributes model as a request for validations on the Email model.
+
+The following judge.rb initializer shows a full implemenation that would work with the examples shown above.
+
+```ruby
+# config/initializers/judge.rb
+Judge.configure do
+  expose Person, :username
+
+  expose Email, :address
+  expose_with_alias 'Email', 'EmailAttributes' 
+end
+
+```
+
+
 ## Rationale
 
 Whenever we need to give the user instant feedback on their form data, it's common to write some JavaScript to test form element values. Since whatever code we write to manage our data integrity in Ruby has to be copied as closely as possible in JavaScript, we end up with some very unsatisfying duplication of application logic.
